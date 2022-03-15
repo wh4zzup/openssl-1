@@ -50,6 +50,10 @@
 #include <openssl/aes.h>
 #include "aes_local.h"
 
+#ifdef TWOFISH
+# include "twofish/twofish.c"
+#endif
+
 #if defined(OPENSSL_AES_CONST_TIME) && !defined(AES_ASM)
 
 # if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
@@ -638,6 +642,18 @@ int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
     if (bits != 128 && bits != 192 && bits != 256)
         return -2;
 
+#ifdef TWOFISH
+
+    if (makeKey(&key->key, DIR_ENCRYPT, bits, NULL) != TRUE)
+        return -1;
+
+    if (cipherInit(&key->cipher, MODE_ECB, NULL) != TRUE)
+        return -1;
+
+    return 0;
+
+#else
+
     rk = (u64*)key->rd_key;
 
     if (bits == 128)
@@ -649,6 +665,8 @@ int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 
     KeyExpansion(userKey, rk, key->rounds, bits/32);
     return 0;
+
+#endif
 }
 
 /**
@@ -1385,6 +1403,18 @@ int AES_set_decrypt_key(const unsigned char *userKey, const int bits,
     int i, j, status;
     u32 temp;
 
+#ifdef TWOFISH
+
+    if (makeKey(&key->key, DIR_DECRYPT, bits, NULL) != TRUE)
+        return -1;
+
+    if (cipherInit(&key->cipher, MODE_ECB, NULL) != TRUE)
+        return -1;
+
+    return 0;
+
+#else
+
     /* first, start with an encryption schedule */
     status = AES_set_encrypt_key(userKey, bits, key);
     if (status < 0)
@@ -1424,6 +1454,8 @@ int AES_set_decrypt_key(const unsigned char *userKey, const int bits,
             Td3[Te1[(rk[3]      ) & 0xff] & 0xff];
     }
     return 0;
+
+#endif
 }
 
 /*
@@ -1632,6 +1664,13 @@ void AES_decrypt(const unsigned char *in, unsigned char *out,
 #endif /* ?FULL_UNROLL */
 
     assert(in && out && key);
+
+#ifdef TWOFISH
+
+    blockDecrypt(&key->cipher, &key->key, in, 128, out);
+
+#else
+
     rk = key->rd_key;
 
     /*
@@ -1807,6 +1846,8 @@ void AES_decrypt(const unsigned char *in, unsigned char *out,
         ((u32)Td4[(t0      ) & 0xff])       ^
         rk[3];
     PUTU32(out + 12, s3);
+
+#endif
 }
 
 #else /* AES_ASM */

@@ -19,6 +19,13 @@
 # include <openssl/opensslconf.h>
 
 # include <stddef.h>
+
+# define TWOFISH
+
+# ifdef TWOFISH
+#  include <openssl/twofish.h>
+# endif
+
 # ifdef  __cplusplus
 extern "C" {
 # endif
@@ -41,6 +48,10 @@ struct aes_key_st {
     unsigned int rd_key[4 * (AES_MAXNR + 1)];
 #  endif
     int rounds;
+#  ifdef TWOFISH
+    keyInstance key;
+    cipherInstance cipher;
+#  endif
 };
 typedef struct aes_key_st AES_KEY;
 
